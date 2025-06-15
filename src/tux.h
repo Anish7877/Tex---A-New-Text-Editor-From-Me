@@ -1,5 +1,5 @@
-#ifndef TEX_H
-#define TEX_H
+#ifndef TUX_H
+#define TUX_H
 #define CTRL_Key(k) ((k)&0x1f)
 #define TUX_VERSION "0.0.1"
 #include "terminal.h"
@@ -17,8 +17,10 @@ class append_buffer{
 };
 class editor{
     public:
+        static bool running;
         editor()=default;
         static void init_editor();
+        static void move_cursor(char& key);
         static void refresh_screen();
         static void draw_rows(append_buffer& buffer);
         static char read_process();
@@ -27,5 +29,7 @@ class editor{
     private:
         static int screen_rows;
         static int screen_cols;
+        static int cursor_x;
+        static int cursor_y;
 };
 #endif

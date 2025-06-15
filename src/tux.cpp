@@ -1,4 +1,5 @@
 #include "tux.h"
+#include <unistd.h>
 
 /** append_buffer **/
 void append_buffer::append(std::string_view s){
@@ -16,13 +17,51 @@ append_buffer::~append_buffer(){
 /** editor **/
 int editor::screen_rows{};
 int editor::screen_cols{};
+int editor::cursor_x{};
+int editor::cursor_y{};
+bool editor::running{true};
 void editor::init_editor(){
+    cursor_x = 0;
+    cursor_y = 0;
     if(terminal::get_window_size(screen_rows,screen_cols) == -1) terminal::die("Window Size");
+}
+void editor::move_cursor(char& key){
+    switch(key){
+        case 'j':
+            if(cursor_y < screen_rows-1){
+                cursor_y++;
+            }
+            break;
+        case 'k':
+            if(cursor_y > 0){
+                cursor_y--;
+            }
+            break;
+        case 'h':
+            cursor_x--;
+            break;
+        case 'l':
+            cursor_x++;
+            break;
+        default:
+            break;
+    }
 }
 void editor::draw_rows(append_buffer& buffer){
     for(int i{0};i<screen_rows;++i){
         if(i == screen_rows/3){
-            std::string welcome_message{"Tux - Text Editor version"};
+            // welcome message will be printed when turned on
+            std::string welcome_message{"Tux - Text Editor Version "};
+            welcome_message += TUX_VERSION;
+            size_t welcome_len = welcome_message.size();
+            if(welcome_len > (size_t)screen_cols) welcome_len = screen_cols;
+            int padding{static_cast<int>((screen_cols-welcome_len))/2};
+            if(padding){
+                buffer.append("~");
+                --padding;
+            }
+            while(padding--) buffer.append(" ");
+            buffer.append(welcome_message);
         }
         else{
             buffer.append("~");
@@ -45,7 +84,7 @@ void editor::refresh_screen(){
     //    particular code i.e. 0,1,2 here we are using 2 to clear
     //    all display
     append_buffer buffer{};
-    buffer.append("\x1b[?25l");
+    //buffer.append("\x1b[?25l");
     // buffer.append("\x1b[2J"); this is not feasible to repaint the screen again and again
     // do we should only clear one a time
     // repositioning the cursor
@@ -55,25 +94,43 @@ void editor::refresh_screen(){
     // 3. H -> this repositions the cursor
     buffer.append("\x1b[H");
     draw_rows(buffer);
-    buffer.append("\x1b[H");
-    buffer.append("\x1b[?25l");
+    std::string move_cursor{"\x1b["};
+    move_cursor += std::to_string(cursor_y+1);
+    move_cursor += ';';
+    move_cursor += std::to_string(cursor_x+1);
+    move_cursor += 'H';
+    buffer.append(move_cursor);
+    //buffer.append("\x1b[?25l");
     write(STDOUT_FILENO,buffer.get_buffer(),buffer.get_size());
 }
 char editor::read_process(){
     int nread{};
     char c{};
-    while((nread = read(STDIN_FILENO,&c,1)) != -1){
-        if(nread == -1 && errno != EAGAIN) terminal::die("read");
+    nread = read(STDIN_FILENO,&c,1);
+    if(nread == -1 && errno != EAGAIN){
+        terminal::die("read");
+    }
+    if(nread == 0){
+        return '\0';
     }
     return c;
 }
 void editor::process_input(){
     char c{read_process()};
+    if(c == '\0') return;
     switch(c){
         case CTRL_Key('q'):
             write(STDOUT_FILENO,"\x1b[2J",4);
             write(STDOUT_FILENO,"\x1b[H",3);
-            exit(0);
+            running = false;
+            break;
+        case 'j':
+        case 'k':
+        case 'h':
+        case 'l':
+            move_cursor(c);
+            break;
+        default:
             break;
     }
 }

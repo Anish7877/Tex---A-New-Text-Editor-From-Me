@@ -2,10 +2,9 @@
 #include "tux.h"
 
 int main(int argc,char** argv){
-    terminal term{};
-    term.enable_Raw_Mode();
+    terminal::enable_Raw_Mode();
     editor::init_editor();
-    while(1){
+    while(editor::running){
         editor::refresh_screen();
         editor::process_input();
     }

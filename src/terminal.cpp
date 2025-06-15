@@ -1,5 +1,4 @@
 #include "terminal.h"
-#include "tux.h"
 #include <cstdio>
 
 termios terminal::orig_termios{};
@@ -24,7 +23,6 @@ int terminal::get_cursor_position(int& rows, int& cols){
     if(buffer[0] != '\x1b' || buffer[1] != '[') return -1;
     // here parsing the cursor report
     if(sscanf(&buffer[2],"%d;%d",&rows,&cols) != 2) return -1;
-    editor::read_process();
     return -0;
 }
 int terminal::get_window_size(int& rows,int& cols){
