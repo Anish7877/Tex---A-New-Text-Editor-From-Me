@@ -1,5 +1,4 @@
 #include "tux.h"
-#include <unistd.h>
 
 /** append_buffer **/
 void append_buffer::append(std::string_view s){
@@ -27,21 +26,25 @@ void editor::init_editor(){
 }
 void editor::move_cursor(char& key){
     switch(key){
-        case 'j':
+        case Up:
             if(cursor_y < screen_rows-1){
                 cursor_y++;
             }
             break;
-        case 'k':
+        case Down:
             if(cursor_y > 0){
                 cursor_y--;
             }
             break;
-        case 'h':
-            cursor_x--;
+        case Left:
+            if(cursor_x > 0){
+                cursor_x--;
+            }
             break;
-        case 'l':
-            cursor_x++;
+        case Right:
+            if(cursor_x < screen_cols-1){
+                cursor_x++;
+            }
             break;
         default:
             break;
@@ -83,7 +86,6 @@ void editor::refresh_screen(){
     // 3. J command i.e. erase in display command which is used with
     //    particular code i.e. 0,1,2 here we are using 2 to clear
     //    all display
-    append_buffer buffer{};
     //buffer.append("\x1b[?25l");
     // buffer.append("\x1b[2J"); this is not feasible to repaint the screen again and again
     // do we should only clear one a time
@@ -92,6 +94,7 @@ void editor::refresh_screen(){
     // 1. \x1b -> escape character
     // 2. [ -> escape sequence instruct
     // 3. H -> this repositions the cursor
+    append_buffer buffer{};
     buffer.append("\x1b[H");
     draw_rows(buffer);
     std::string move_cursor{"\x1b["};
@@ -113,6 +116,22 @@ char editor::read_process(){
     if(nread == 0){
         return '\0';
     }
+    if(c == '\x1b'){
+        std::vector<char> seq(3);
+        if(read(STDIN_FILENO,&seq[0],1) != 1) return '\x1b';
+        if(read(STDIN_FILENO,&seq[1],1) != 1) return '\x1b';
+
+        if(seq[0] == '['){
+            switch(seq[1]){
+                case 'A' : return Down;
+                case 'B' : return Up;
+                case 'C' : return Right;
+                case 'D' : return Left;
+                default: break;
+            }
+        }
+        return '\x1b';
+    }
     return c;
 }
 void editor::process_input(){
@@ -124,10 +143,10 @@ void editor::process_input(){
             write(STDOUT_FILENO,"\x1b[H",3);
             running = false;
             break;
-        case 'j':
-        case 'k':
-        case 'h':
-        case 'l':
+        case Up:
+        case Down:
+        case Left:
+        case Right:
             move_cursor(c);
             break;
         default:

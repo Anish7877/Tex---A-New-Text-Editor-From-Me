@@ -5,6 +5,12 @@
 #include "terminal.h"
 #include <string_view>
 #include <cerrno>
+enum Keys{
+    Up = 'j',
+    Down = 'k',
+    Left = 'h',
+    Right = 'l'
+};
 class append_buffer{
     public:
         append_buffer()=default;
