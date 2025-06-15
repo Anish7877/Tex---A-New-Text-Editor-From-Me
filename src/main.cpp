@@ -1,13 +1,20 @@
+#include <cerrno>
 #include <iostream>
-#include "tex.h"
+#include "terminal.h"
 
 int main(int argc,char** argv){
-    std::ios::sync_with_stdio(false);
-    std::cin.tie(0);
-    std::cout.tie(0);
-    enable_Raw_Mode();
-    char c{};
-    while(read(STDIN_FILENO,&c,1) == 1 && c != 'q'){
+    terminal term{};
+    term.enable_Raw_Mode();
+    while(1){
+        char c{'\0'};
+        if(read(STDIN_FILENO,&c,1) == -1 && errno == EAGAIN) terminal::die("read");
+        if(iscntrl(c)){
+            std::cout << c << char(13) << '\n';
+        }
+        else{
+            std::cout << (int)c << '(' << c << ')' << char(13) << '\n';
+        }
+        if(c == 'q') break;
     }
     return 0;
 }
