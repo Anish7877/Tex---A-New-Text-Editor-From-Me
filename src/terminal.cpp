@@ -1,11 +1,44 @@
 #include "terminal.h"
-#include <iostream>
+#include "tux.h"
+#include <cstdio>
 
 termios terminal::orig_termios{};
+winsize terminal::win{};
 void disable_Raw_Mode(){
     if(tcsetattr(STDIN_FILENO,TCSAFLUSH,&terminal::orig_termios) == -1){
         terminal::die("tcsetattr");
     }
+}
+int terminal::get_cursor_position(int& rows, int& cols){
+    std::vector<char> buffer(32);
+    // this is the n escape sequence which is used to report the device status report
+    // here we using code 6 which will give us cursor position report
+    if(write(STDOUT_FILENO,"\x1b[6n",4) != 4) return -1;
+    unsigned i{0};
+    while(i < static_cast<unsigned>(buffer.size())-1){
+        if(read(STDIN_FILENO,&buffer[i],1) != 1) break;
+        if(buffer[i] == 'R') break;
+        ++i;
+    }
+    buffer[i] = '\0';
+    if(buffer[0] != '\x1b' || buffer[1] != '[') return -1;
+    // here parsing the cursor report
+    if(sscanf(&buffer[2],"%d;%d",&rows,&cols) != 2) return -1;
+    editor::read_process();
+    return -0;
+}
+int terminal::get_window_size(int& rows,int& cols){
+    // here we used the C escape sequence which takes the cursor to rightmost
+    // and we also used the B escape sequence with 999 code which takes the cursor to the down
+    if(ioctl(STDOUT_FILENO,TIOCGWINSZ,&win) == -1 || win.ws_col == 0){
+        if(write(STDOUT_FILENO,"\x1b[999C\x1b[999B",12) != 12) return -1;
+        return get_cursor_position(rows,cols);
+    }
+    else{
+        rows = win.ws_row;
+        cols = win.ws_col;
+    }
+    return 0;
 }
 void terminal::enable_Raw_Mode(){
     // this is like turning off the echoing of the terminal when we press a key
@@ -41,6 +74,8 @@ void terminal::enable_Raw_Mode(){
 }
 void terminal::die(const std::string& s){
     std::cerr << s << '\n';
+    write(STDOUT_FILENO,"\x1b[2J",4);
+    write(STDOUT_FILENO,"\x1b[H",3);
     exit(1);
 }
 terminal::~terminal(){
